@@ -10,10 +10,13 @@ import (
   //string processing
   "strings"
 
+  //r/w from buffer
+  "bufio"
+
   //traversing the folders
   "os"
   "path/filePath"
-  "io/ioutil"
+  "io"
   "log"
 )
 
@@ -69,7 +72,7 @@ eror on failure */
       if file.Name() == "vendor" || file.Name() == "node_modules" {
         continue
       }
-      folders = scanGitFolders(folders, path)
+      folders = scanGitFolders(folderis, path)
     }
   }
 
@@ -93,6 +96,82 @@ func getDotFilePath() string {
   dotFile := usr.Homedir + "./gogitlocalstats"
 
   return dotFile
+}
+
+/*
+* parse existing to a slice
+* add new items to the slice(without duplicates)
+* rewrite the file
+*/
+func addNewSliceElementsToFile(filePath string, newRepos []string) {
+  existingRepos := parseFileLinesToSlice(filePath)
+  repos := joinSlices(newRepos, existingRepos)
+  dumpStringSliceToFile(repos, filePath)
+}
+
+/*
+* takes file content and parses line by line to a slice of strings
+*/
+func parseFileLinesToSlice(filePath string) []string {
+  f := openFile(filePath)
+  defer f.Close()
+
+  var lines []string
+  scanner := buffio.NewScanner(f)
+  for scanner.Scan(){
+    lines := append(lines, scanner.Text())
+  }
+  if err := scanner.Err(); err != nil {
+    if err != io.EOF {
+      panic(err)
+    }
+  }
+
+  return lines
+}
+
+/*
+*pretty self explanatory
+*/
+func openFile(filePath string)  {
+  f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0755)
+  if err != nil {
+    if os.IsNotExist(err) {
+      //file does not exist
+      _, err = os.Create(filePath)
+      if err != nil {
+       panic(err)
+      }
+    } else {
+      panic(err)
+    }
+  }
+  return f  
+}
+
+
+/*
+*adds new unique slice 
+*/
+func joinSlices(new []string, existing []string) []string {
+  for _, i := range new {
+    if !sliceContains(existing, i) {
+      existing = append(existing, i)
+    }
+  }
+  return existing
+}
+
+/*
+*returns true if it finds a duplicate
+*/
+func sliceContains(slice []string, value string) bool {
+  for _,v := range slice {
+    if v == value {
+      return true
+    }
+  }
+  return false
 }
 
 func main() {
